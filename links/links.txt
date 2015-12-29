@@ -1,0 +1,6 @@
+http://vip.sugovica.hu/Sardi/kepnezo/JPEG%20File%20Layout%20and%20Format.htm
+https://www.imperialviolet.org/binary/jpeg/
+https://en.wikipedia.org/wiki/JPEG
+http://www.impulseadventure.com/photo/jpeg-huffman-coding.html
+https://code.google.com/p/picojpeg/source/browse/trunk/picojpeg.c
+http://imrannazar.com/Let's-Build-a-JPEG-Decoder%3A-Huffman-Tables
