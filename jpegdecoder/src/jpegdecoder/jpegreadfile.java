@@ -1,10 +1,12 @@
 package jpegdecoder;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class jpegreadfile {
 
-	static String jpegfile = "C:\\DATA\\swamy\\research\\javacode\\samplejpg\\image1.jpg";
+	static String jpegfile = "C:\\DATA\\swamy\\research\\javacode\\samplejpg\\Linux-Tux-small.jpg";
 	
 	//prefix byte is 0xFF
 	static final byte PREF = (byte) 0xFF;
@@ -34,6 +36,8 @@ public class jpegreadfile {
 	static final byte EOI = (byte) 0xD9;
 		
 	static FileInputStream inputStream;
+	
+	static int dc_huf0;
 	
 	//look for prefix byte and return the next byte whic
 	//is the marker byte
@@ -321,8 +325,11 @@ public class jpegreadfile {
 		
 		//ignore 3 byte
 		inputStream.read(buffer);
+		System.out.println( "dec_SOS:: ignored byte 1 " + buffer[0]);  
 		inputStream.read(buffer);
+		System.out.println( "dec_SOS:: ignored byte 2 " + buffer[0]);  
 		inputStream.read(buffer);
+		System.out.println( "dec_SOS:: ignored byte 3 " + buffer[0]);  
 		
 		
 		}
@@ -440,13 +447,16 @@ public class jpegreadfile {
 
 	 */
 	
-	static void dec_DHT()
+	static void dec_DHT(ArrayList<String> dht_codes, ArrayList<Integer> dht_symbols, int [] symbols_array)
 	{
 	
 		try
 		{
 			
 		byte[] buffer = new byte[1];
+		
+		//List<Integer> dht_symbols = new ArrayList<Integer>();
+		//List<String> dht_codes = new ArrayList<String>();
 		
 		//SOF0 segment length - 2 bytes
 		//first two bytes after the SOF0 marker
@@ -475,13 +485,13 @@ public class jpegreadfile {
 		//16 bytes - number of symbols with codes of length 1..16
 		System.out.println( "dec_DHT:: DHT number of symbols "); 
 		
-		int [][] symbols_array = new int [16][1];
+		//int [] symbols_array = new int [16];
 		
 		for(int i=0 ; i < 16 ; i++)
 		{
 			 inputStream.read(buffer);  
 			 
-			 symbols_array[i][0] = buffer[0];
+			 symbols_array[i] = buffer[0];
 			 
 			 System.out.print(buffer[0] + " ");
 			 
@@ -505,23 +515,82 @@ public class jpegreadfile {
 				 111011 (fifty nine) 111100 (sixty) 111101 (sixty one) 111110 (sixty two) 
 				 
 				 */
+				
 		for(int i=0 ; i < 16 ; i++)
 		{
-			System.out.print( "dec_DHT:: DHT row " + i + " num codes " + symbols_array[i][0] + "  "); 
+			System.out.print( "dec_DHT:: DHT row " + i + " num codes " + symbols_array[i] + "  "); 
 			
-			for(int j = 0; j < symbols_array[i][0]; j++)
+			for(int j = 0; j < symbols_array[i]; j++)
 			{
 			 inputStream.read(buffer);  
 			 
+			 dht_symbols.add((int)buffer[0]);
+
 			 System.out.print(buffer[0] + " ");
+			 
 			}
 			 
 			System.out.println(" ");
 		}
 		
-	
+		System.out.println("dht_symbols " + dht_symbols.size());
 		
+		 int hufcode = 0;
+         int count = 0;
+         
+         StringBuffer hufcodestring = new StringBuffer();               
+
+         //outer loop - 16 code classes
+         for (int i = 0; i < 16; i++) {
+
+             //inner loop - how many codes in each class ?
+             for (int j = 0 ; j <  symbols_array[i] ; j++) {
+
+                 //turn the binary number into a string
+                 hufcodestring.append(Integer.toBinaryString(hufcode)); 
+                 
+                 //prepend 0s until the code string is the required length in this class
+                 for(int n = hufcodestring.length(); n < i+1; n++) {
+                     hufcodestring.insert(0, "0");
+                 }
+                 
+               //  for(int k = 0 ; k < hufcodestring.length(); k++)
+               // 	 System.out.print(hufcodestring.charAt(k));
+                 
+               //  System.out.println("");
+                 
+                 //put the created Huffman code in an array
+                 dht_codes.add(hufcodestring.toString());
+                 
+                 hufcode++;
+                 count ++;
+                 
+                 hufcodestring.delete(0, hufcodestring.length());
+             }
+             
+            hufcode = hufcode << 1;
+
+         }
 			
+         count = 0;
+         
+         for(int i=0 ; i < 16 ; i++)
+ 		{
+ 			System.out.print( "dec_DHT:: DHT row " + i + " codes " + "  "); 
+ 			
+ 			for(int j = 0; j < symbols_array[i]; j++)
+ 			{
+
+ 			 System.out.print(dht_codes.get(count).substring(0) + " ");
+ 			 
+ 			 count++;
+ 			}
+ 			 
+ 			System.out.println(" ");
+ 		}
+         
+         System.out.println("dht_codes " + dht_codes.size());
+         
 		}
 		catch(IOException ex) {
 	        System.out.println( "dec_DHT::Error reading file '" + jpegfile + "'");                  
@@ -647,6 +716,140 @@ public class jpegreadfile {
 		
 	}
 	
+	//convert 8 bit binary number to equivalent string representation
+	static String binary_to_string(byte val)
+	{
+		int mask = 0x80;
+		
+		StringBuffer binarystring = new StringBuffer();       
+		
+		int val_to_int = (int) val & 0xFF;
+		
+		for(int i = 0 ; i < 8 ; i++)
+			
+		{
+			//System.out.println(val_to_int + " " + mask + " " + (val & mask));
+			
+			if((val_to_int & mask) == 0x00)
+			{
+				
+				binarystring.append("0");
+			}		
+			else
+			{
+				binarystring.append("1");	
+			}
+		
+			mask = (mask >> 1) & 0xFF;
+			
+		}
+		
+		//System.out.print(binarystring.toString() + " ");
+		return binarystring.toString();
+		
+	}
+	
+	static int valid_dc_code(ArrayList<String> dht_codes, ArrayList<Integer> dht_symbols, StringBuffer scanstring)
+	{
+		int i = 0, code_length;
+		
+		int found_valid_code = 0;
+		
+		String partial_code = "";
+		
+		int size_next_bits = 0;
+		
+		for(code_length = 1 ; code_length < 17 ; code_length++)
+			
+		{
+		
+			partial_code = partial_code + scanstring.charAt(code_length - 1);
+		
+		// i iterates through the list of huffman codes
+			// note - each category can have many codes , hence, i does not correspond to a category
+		for(i = 0 ; i < dht_codes.size() ; i ++)
+		{
+			
+			if(dht_codes.get(i).equals(partial_code))
+			{
+				//System.out.println("valid_dc_code:: i " + i);
+				
+				found_valid_code = 1;
+				break;
+			}
+		}
+		
+		if(found_valid_code == 1)
+		{
+			
+			break;
+		}
+		
+		}
+		
+		if(found_valid_code == 1)
+		{
+		System.out.println("valid_dc_code:: partial_code " + partial_code + " dht table index " + i + " code length  " + code_length);
+		
+		//delete the huf code which is found
+				scanstring.delete(0, code_length);
+		
+		//get the symbol from dht symbol table
+		System.out.println("valid_dc_code::	" + dht_symbols.get(i).byteValue() + " " + dht_symbols.get(i).intValue());
+		
+		size_next_bits = dht_symbols.get(i).byteValue();
+		}
+		else
+		{
+		System.out.println("valid_dc_code:: partial_code " + partial_code + " no valid code " );
+		size_next_bits = 0;
+		}
+		
+		return size_next_bits;
+		
+	}
+	
+	
+	 static int get_dc_coeff(int size_next_bits, StringBuffer scanstring)
+	 {
+		
+		 int dc_coeff = 0;
+		 
+		 String next_bits = scanstring.substring(0, size_next_bits);
+		 
+		 System.out.println("get_dc_coeff:: next_bits " + next_bits );
+		 
+		 scanstring.delete(0, size_next_bits);
+		 
+		 if(next_bits.charAt(0) == '0')
+		 {
+			//coefficient is negative 
+			 for(int i = 0 ; i < next_bits.length(); i++)
+			 {
+				 if(next_bits.charAt(i) == '0')
+				 {
+					dc_coeff += Math.pow(2, ((next_bits.length() - 1) - i)) ;
+				 }
+			 }
+			 
+			 dc_coeff = -1 * dc_coeff;
+		 }
+		 else
+		 { //coeff is positive
+	
+			 for(int i = 0 ; i < next_bits.length(); i++)
+			 {
+				 if(next_bits.charAt(i) == '1')
+				 {
+					dc_coeff += Math.pow(2, ((next_bits.length() - 1) - i)) ;
+				 }
+			 }
+			 
+		 }
+		 
+		 return dc_coeff;
+	 }
+	 
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 		
@@ -731,11 +934,33 @@ public class jpegreadfile {
             
             System.out.println("Marker " + Integer.toHexString(buffer[0]));
             
+            ArrayList<String> dht_codes0 = new ArrayList<String>();
+            ArrayList<Integer> dht_symbols0 = new ArrayList<Integer>();
+            int [] symbols_array0 = new int[16];
+            
             if(buffer[0] == DHT)
             {
                 System.out.println("Found JPEG DHT marker");  
-                 	  
-            dec_DHT();
+            
+            dec_DHT(dht_codes0, dht_symbols0, symbols_array0);
+            
+            
+            }
+            
+            buffer[0] = scan_for_prefix();
+            
+            System.out.println("Marker " + Integer.toHexString(buffer[0]));
+            
+
+            ArrayList<String> dht_codes1 = new ArrayList<String>();
+            ArrayList<Integer> dht_symbols1 = new ArrayList<Integer>();
+            int [] symbols_array1 = new int[16];
+            
+            if(buffer[0] == DHT)
+            {
+                System.out.println("Found JPEG DHT marker");  
+                
+            dec_DHT(dht_codes1, dht_symbols1, symbols_array1);
             
             
             }
@@ -748,7 +973,11 @@ public class jpegreadfile {
             {
                 System.out.println("Found JPEG DHT marker");  
                  	  
-            dec_DHT();
+                ArrayList<String> dht_codes2 = new ArrayList<String>();
+                ArrayList<Integer> dht_symbols2 = new ArrayList<Integer>();
+                int [] symbols_array2 = new int[16];  
+                
+            dec_DHT(dht_codes2, dht_symbols2, symbols_array2);
             
             
             }
@@ -760,21 +989,12 @@ public class jpegreadfile {
             if(buffer[0] == DHT)
             {
                 System.out.println("Found JPEG DHT marker");  
-                 	  
-            dec_DHT();
-            
-            
-            }
-            
-            buffer[0] = scan_for_prefix();
-            
-            System.out.println("Marker " + Integer.toHexString(buffer[0]));
-            
-            if(buffer[0] == DHT)
-            {
-                System.out.println("Found JPEG DHT marker");  
-                 	  
-            dec_DHT();
+                
+                ArrayList<String> dht_codes3 = new ArrayList<String>();
+                ArrayList<Integer> dht_symbols3 = new ArrayList<Integer>();
+                int [] symbols_array3 = new int[16];  
+                
+            dec_DHT(dht_codes3, dht_symbols3, symbols_array3);
             
             
             }
@@ -791,6 +1011,147 @@ public class jpegreadfile {
             
             
             }
+            
+         //   dec_scan_code();
+            
+            //now we are reading the huffman codes
+            //we read 8 bits at each read
+            inputStream.read(buffer);
+            
+			//convert the 8 bits read into a string
+            String temp = binary_to_string(buffer[0]);
+            
+            //System.out.println(temp);
+            
+            //scanstring is the container for the huffman bit stream
+            StringBuffer scanstring = new StringBuffer();
+            
+            //put the huffman bitstream into scanstring container
+            scanstring.append(temp);
+            
+            //System.out.println(scanstring.toString());
+            
+            //read 8 more bits into the scan container
+            //
+          //  while(inputStream.read(buffer) > 0)
+           // {
+            inputStream.read(buffer);
+            	 temp = binary_to_string(buffer[0]);
+            	
+            	 scanstring.append(temp); 
+            	 
+            	 System.out.println(scanstring.toString()); 
+            	 
+            	 //read size_next_bits from the stream
+            	 int size_next_bits = valid_dc_code(dht_codes0, dht_symbols0, scanstring);
+            	 
+            	 System.out.println(scanstring.toString()); 
+            	 
+            	 //fill container with more bits
+            	 if(scanstring.length() < 16) {
+            		 inputStream.read(buffer);
+            		 temp = binary_to_string(buffer[0]);
+                 	
+                	 scanstring.append(temp); 
+                	 System.out.println(scanstring.toString()); 
+            	 }
+            	 
+            	int dc_coeff = get_dc_coeff(size_next_bits, scanstring);
+            	 
+            	System.out.println("dc coeff  "  + dc_coeff);
+            	
+            	 System.out.println(scanstring.toString()); 
+            	 
+            	 //fill container with more bits
+            	 if(scanstring.length() < 16) {
+            		 inputStream.read(buffer);
+            		 temp = binary_to_string(buffer[0]);
+                 	
+                	 scanstring.append(temp); 
+                	 System.out.println(scanstring.toString()); 
+            	 }
+            	 
+            	 //ac coeffs
+            	 //read size_next_bits from the stream
+            	 size_next_bits = valid_dc_code(dht_codes1, dht_symbols1, scanstring);
+            	 
+                 System.out.println(scanstring.toString()); 
+            	 
+            	 //fill container with more bits
+            	 if(scanstring.length() < 16) {
+            		 inputStream.read(buffer);
+            		 temp = binary_to_string(buffer[0]);
+                 	
+                	 scanstring.append(temp); 
+                	 System.out.println(scanstring.toString()); 
+            	 }
+            	 
+            	 //read size_next_bits from the stream
+            	 size_next_bits = valid_dc_code(dht_codes0, dht_symbols0, scanstring);
+            	 
+            	 System.out.println(scanstring.toString()); 
+            	 
+            	 //fill container with more bits
+            	 if(scanstring.length() < 16) {
+            		 inputStream.read(buffer);
+            		 temp = binary_to_string(buffer[0]);
+                 	
+                	 scanstring.append(temp); 
+                	 System.out.println(scanstring.toString()); 
+            	 }
+            	 
+            	dc_coeff = get_dc_coeff(size_next_bits, scanstring);
+            	 
+             	System.out.println("dc coeff  "  + dc_coeff);
+             	
+             	 System.out.println(scanstring.toString()); 
+             	 
+             	 //fill container with more bits
+            	 if(scanstring.length() < 16) {
+            		 inputStream.read(buffer);
+            		 temp = binary_to_string(buffer[0]);
+                 	
+                	 scanstring.append(temp); 
+                	 System.out.println(scanstring.toString()); 
+            	 }
+            	 
+            	 //ac coeffs
+            	 //read size_next_bits from the stream
+            	 size_next_bits = valid_dc_code(dht_codes1, dht_symbols1, scanstring);
+            	 
+                 System.out.println(scanstring.toString()); 
+                 
+            	 // System.out.print(scanstring.length() + " "); 
+          //  }
+            
+           /* System.out.println("");
+            
+            String my = scanstring.substring(0, (scanstring.length()/64)*5);
+            System.out.println(my);*/
+            
+            /*
+            int pad_endof_string = 8 - ( scanstring.length() - (scanstring.length()/8) * 8);
+            
+            for(int i = 0 ;  i < pad_endof_string; i ++)
+            {
+            	scanstring.append("F");      
+            }
+            
+            System.out.print(scanstring.length() + " ");  
+            
+            for(int i = 0 ;  i < (scanstring.length()/8) ; i ++)
+            {
+            	
+            String t = scanstring.substring( (i * 8) , ( ((i + 1 )* 8) - 1) );
+            
+            System.out.print(t + " ");  
+            }
+            */
+           // valid_dc_code()
+        //   String temp = binary_to_string(buffer[0]);
+           
+         // System.out.println(temp);
+            
           /*  
             while(true)
             {
