@@ -39,7 +39,7 @@ public class jpegreadfile {
 	
 	static int dc_huf0;
 	
-	//look for prefix byte and return the next byte whic
+	//look for prefix byte and return the next byte which
 	//is the marker byte
 	static byte scan_for_prefix()
 	{
@@ -850,6 +850,56 @@ public class jpegreadfile {
 		 return dc_coeff;
 	 }
 	 
+	 static void decode_marker(byte marker)
+	 {
+		 
+		  // is the previous byte SOI ?	
+         if(marker == SOI)
+         {
+       	  System.out.println("Found JPEG start of image - SOI");  
+         }
+         else if(marker == APP0)
+         {
+         	System.out.println("Found APP0 marker");  
+         	
+         	dec_APP0();
+         	
+         }
+         else if(marker == DQT)
+         {
+         	System.out.println("Found DQT marker");  
+         	
+         	dec_DQT();
+         	       	
+         }
+         else  if(marker == SOF0)
+         {
+             System.out.println("Found JPEG start of frame 0 - SOF0");  
+              	  
+         dec_SOF0();
+         
+         
+         }
+        
+         else
+         {
+       	  System.out.println("decode_marker:: " + marker + " marker not found");
+       	  
+       	  System.exit(0);
+       	  
+         }
+         
+		 
+		 
+	 }
+	 
+	 
+	 static void image_8X8()
+	 {
+		 
+		 
+	 }
+	 
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
 		
@@ -862,74 +912,28 @@ public class jpegreadfile {
 	            
 			inputStream = new FileInputStream(jpegfile);
 			
+			//look for SOI marker
 			buffer[0] = scan_for_prefix();
-			
-                // is the previous byte SOI ?	
-                  if(buffer[0] == SOI)
-                  {
-                	  System.out.println("Found JPEG start of image");  
-                  }
-                  else
-                  {
-                	  System.out.println("Did not find JPEG start of image");
-                	  
-                	  System.exit(0);
-                	  
-                  }
-       
-                 
-             buffer[0] = scan_for_prefix();
-                  
-            //we break from above while
-            //check buffer to see what marker was hit in the while loop above
-            if(buffer[0] == APP0)
-            {
-            	System.out.println("Found APP0 marker");  
-            	
-            	dec_APP0();
-            	
-            }
-           
+			decode_marker(buffer[0]); 
             
+			//APP0 marker
             buffer[0] = scan_for_prefix();
+            decode_marker(buffer[0]);       
             
-            System.out.println("Marker " + Integer.toHexString(buffer[0]));
-            
-            if(buffer[0] == DQT)
-            {
-            	System.out.println("Found DQT marker");  
-            	
-            	dec_DQT();
-            	
-            	
-            }
-            
+           //DQT marker - table 0
             buffer[0] = scan_for_prefix();
+            decode_marker(buffer[0]); 
             
-            System.out.println("Marker " + Integer.toHexString(buffer[0]));
-            
-            if(buffer[0] == DQT)
-            {
-            	System.out.println("Found DQT marker");  
-            	
-            	dec_DQT();
-            	
-            	
-            }
-            
+           //DQT marker - table 1
             buffer[0] = scan_for_prefix();
+            decode_marker(buffer[0]); 
             
-            System.out.println("Marker " + Integer.toHexString(buffer[0]));
-           
-            if(buffer[0] == SOF0)
-             {
-                 System.out.println("Found JPEG start of frame 0");  
-                  	  
-             dec_SOF0();
-             
-             
-             }
+            //SOF marker
+            buffer[0] = scan_for_prefix();
+            decode_marker(buffer[0]);
             
+            //System.out.println("Marker " + Integer.toHexString(buffer[0]));
+                
             buffer[0] = scan_for_prefix();
             
             System.out.println("Marker " + Integer.toHexString(buffer[0]));
